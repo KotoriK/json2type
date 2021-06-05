@@ -1,3 +1,9 @@
+/**
+ * json2type
+ * @author KotoriK
+ * @date 2021.6
+ * @license MIT
+ */
 import { pascalCase } from 'change-case'
 export class Json2Type {
     /**
