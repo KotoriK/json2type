@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "fs/promises";
-import { parseToTypes } from './index.mjs'
+import { parseToTypes } from './index'
 readFile('./input.txt', 'utf-8').then(str =>
     parseToTypes(JSON.parse(str))
 ).then((str) =>

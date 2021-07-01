@@ -31,7 +31,7 @@ export class Json2Type {
      * @param {Record<string,any>} obj 
      * @param {string} name
      */
-    parseToTypes(obj, name = 'DefaultInterface') {
+    parseToTypes(obj: any, name = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
         return `interface ${name}${this._parseObjectToTypes(obj)}${this._printCache()}`
     }
@@ -40,7 +40,7 @@ export class Json2Type {
      * @param obj 
      * @returns {string}
      */
-    _parseObjectToTypes(obj) {
+    _parseObjectToTypes(obj: Object) {
         return '{\n' + Object.entries(obj)
             .map(([key, value]) => {
                 const safekey = _safeKey(key)
@@ -53,7 +53,7 @@ export class Json2Type {
      * @param {Array} arr 
      * @returns {string}
      */
-    _parseArray(arr) {
+    _parseArray(arr: string | any[]) {
         let types = new Set()
         let T
         for (const value of arr) {
@@ -78,11 +78,11 @@ export class Json2Type {
      * @param key 
      * @returns 
      */
-    _checkThenParseObject(foo, key) {
+    _checkThenParseObject(foo: any, key?: string) {
         if (foo instanceof Array) {
             return this._parseArray(foo)
         } else if (foo != null) {
-            const struct = this._parseObjectToTypes(foo, key)
+            const struct = this._parseObjectToTypes(foo, /* key */)
             const d = this._interface_cache.get(struct)
             if (d) {
                 return d.name
@@ -100,7 +100,7 @@ export class Json2Type {
      * @param {string | undefined} key
      * @returns {string}
      */
-    _typeof(foo, key) {
+    _typeof(foo: unknown, key: any) {
         let valueType = typeof foo
         switch (valueType) {
             case 'object':
@@ -132,7 +132,7 @@ export class Json2Type {
  * @param foo 
  * @returns {string}
  */
-function _typeOf_NoRecurse(foo) {
+function _typeOf_NoRecurse(foo: any) {
     let valueType = typeof foo
     switch (valueType) {
         case 'object':
@@ -154,7 +154,7 @@ function _typeOf_NoRecurse(foo) {
  * 
  * @param {string} key 
  */
-function _safeKey(key) {
+function _safeKey(key: string) {
     if (key.match(/^\d/) && key.match(/[A-Za-z]/)) {
         return `"${key}"`
     } else if (key.match('_')) {
@@ -168,6 +168,6 @@ function _safeKey(key) {
  * @param {string} json
  * @param {string} name name of the generating interface 
  */
-export function parseToTypes(json, name = 'DefaultInterface') {
+export function parseToTypes(json: string, name = 'DefaultInterface') {
     return new Json2Type().parseToTypes(JSON.parse(json), name)
 }
