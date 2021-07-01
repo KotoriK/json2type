@@ -2,7 +2,8 @@
   "name": "json2type",
   "version": "1.0.0",
   "description": "Generate TypeScript Type Definition from JSON.",
-  "main": "index.js",
+  "main": "index.mjs",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
