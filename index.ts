@@ -10,13 +10,13 @@ export class Json2Type {
      * @private
      * @type {Map<string,import(".").InterfaceDefinition>}
      */
-    _interface_cache = new Map()
+    private _interface_cache = new Map()
     /**
      * @private
      * @type {number}
      */
-    _unname_interface_count = 0
-    _printCache() {
+    private _unname_interface_count = 0
+    private _printCache() {
         if (this._interface_cache.size > 0) {
             const entries = Array.from(this._interface_cache.entries())
             return entries.map(([key, { name }]) => {
@@ -31,7 +31,7 @@ export class Json2Type {
      * @param {Record<string,any>} obj 
      * @param {string} name
      */
-    parseToTypes(obj: any, name = 'DefaultInterface') {
+    parseToTypes(obj: Record<string,any>, name = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
         return `interface ${name}${this._parseObjectToTypes(obj)}${this._printCache()}`
     }
@@ -40,7 +40,7 @@ export class Json2Type {
      * @param obj 
      * @returns {string}
      */
-    _parseObjectToTypes(obj: Object) {
+    private _parseObjectToTypes(obj: Object) {
         return '{\n' + Object.entries(obj)
             .map(([key, value]) => {
                 const safekey = _safeKey(key)
@@ -53,7 +53,7 @@ export class Json2Type {
      * @param {Array} arr 
      * @returns {string}
      */
-    _parseArray(arr: string | any[]) {
+    private _parseArray(arr: string | any[]) {
         let types = new Set()
         let T
         for (const value of arr) {
@@ -78,7 +78,7 @@ export class Json2Type {
      * @param key 
      * @returns 
      */
-    _checkThenParseObject(foo: any, key?: string) {
+    private _checkThenParseObject(foo: any, key?: string) {
         if (foo instanceof Array) {
             return this._parseArray(foo)
         } else if (foo != null) {
@@ -100,7 +100,7 @@ export class Json2Type {
      * @param {string | undefined} key
      * @returns {string}
      */
-    _typeof(foo: unknown, key: any) {
+    private _typeof(foo: unknown, key: any) {
         let valueType = typeof foo
         switch (valueType) {
             case 'object':
@@ -122,7 +122,7 @@ export class Json2Type {
      * @private
      * @returns {string}
      */
-    _defaultName() {
+    private _defaultName() {
         const r = 'I' + this._unname_interface_count
         this._unname_interface_count++
         return r
