@@ -1,52 +1,62 @@
 export declare class Json2Type {
     /**
      * @private
-     * @type {Map<string,import(".").InterfaceDefinition>}
+     * @type {Map<string,InterfaceDefinition>}
      */
-    _interface_cache: Map<any, any>;
+    private _cache;
+    private _cache_r;
     /**
      * @private
      * @type {number}
      */
-    _unname_interface_count: number;
-    _printCache(): string;
+    private _unnameCount;
+    private _printCache;
     /**
      *
      * @param {Record<string,any>} obj
      * @param {string} name
      */
-    parseToTypes(obj: any, name?: string): string;
+    parseToTypes(obj: Record<string, any>, name?: string): string;
     /**
      * @private
      * @param obj
      * @returns {string}
      */
-    _parseObjectToTypes(obj: Object): string;
+    private _parseObjectToTypes;
     /**
+     * 推断数组内部元素的类型
      * @private
      * @param {Array} arr
      * @returns {string}
      */
-    _parseArray(arr: string | any[]): string;
+    private _printArrayType;
     /**
      * @private
      * @param foo
      * @param key
      * @returns
      */
-    _checkThenParseObject(foo: any, key?: string): any;
+    private _checkThenParseObject;
+    /**
+     * try to parse Index Signatures Object
+     * @seealso https://www.typescriptlang.org/docs/handbook/2/objects.html#index-signatures
+     * @param foo
+     * @param key
+     * @returns
+     */
+    private _tryParseIdMap;
     /**
      * @private
      * @param foo
      * @param {string | undefined} key
      * @returns {string}
      */
-    _typeof(foo: unknown, key: any): any;
+    private _typeof;
     /**
      * @private
      * @returns {string}
      */
-    _defaultName(): string;
+    private _defaultName;
 }
 /**
  *
