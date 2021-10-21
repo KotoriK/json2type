@@ -66,7 +66,7 @@ export class Json2Type {
             }
             T = Array.from(types.values()).join(' | ')
         } else if (arr.length === 0) {
-            T = 'undefined'//空数组无法推断类型
+            T = 'unknown'//空数组无法推断类型
         } else {
             T = Array.from(types.values()).join(' | ')
         }
