@@ -82,6 +82,10 @@ export class Json2Type {
         if (foo instanceof Array) {
             return this._parseArray(foo)
         } else if (foo != null) {
+            if (key) {
+                const trial = this._tryParseIdMap(foo, key)
+                if (trial) return trial
+            }
             const struct = this._parseObjectToTypes(foo, /* key */)
             if (struct.match(/{\s*}/)) return struct
             const d = this._interface_cache.get(struct)
@@ -94,6 +98,26 @@ export class Json2Type {
             }
         }
         return 'null'
+    }
+    /**
+     * try to parse Index Signatures Object
+     * @seealso https://www.typescriptlang.org/docs/handbook/2/objects.html#index-signatures
+     * @param foo 
+     * @param key 
+     * @returns 
+     */
+    private _tryParseIdMap(foo: Object, key: string) {
+        const parentKey = key
+        const keys = Array.from(Object.keys(foo))
+        if (keys.length > 0 && keys.every((item) => item.match(/^\d+$/))) {
+            return `{[id:number]:${Array.from(
+                new Set(
+                    Object.values(foo)
+                        .map(value => this._typeof(value, parentKey))
+                )
+            )
+                .join('|')}}`
+        }
     }
     /**
      * @private
