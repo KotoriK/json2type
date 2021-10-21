@@ -43,7 +43,7 @@ export class Json2Type {
     private _parseObjectToTypes(obj: Object) {
         return '{\n' + Object.entries(obj)
             .map(([key, value]) => {
-                const safekey = _safeKey(key)
+                const safekey = wrapKey(key)
                 return `${safekey}:${this._typeof(value, safekey)}`
             }
             ).join('\n') + '\n}'
@@ -154,8 +154,8 @@ function _typeOf_NoRecurse(foo: any) {
  * 
  * @param {string} key 
  */
-function _safeKey(key: string) {
     if (key.match(/^\d/) && key.match(/[A-Za-z]/)) {
+function wrapKey(key: string) {
         return `"${key}"`
     } else if (key.match('_')) {
         return `"${key}"`
