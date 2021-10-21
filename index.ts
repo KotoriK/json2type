@@ -31,7 +31,7 @@ export class Json2Type {
      * @param {Record<string,any>} obj 
      * @param {string} name
      */
-    parseToTypes(obj: Record<string,any>, name = 'DefaultInterface') {
+    parseToTypes(obj: Record<string, any>, name = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
         return `interface ${name}${this._parseObjectToTypes(obj)}${this._printCache()}`
     }
@@ -40,7 +40,7 @@ export class Json2Type {
      * @param obj 
      * @returns {string}
      */
-    private _parseObjectToTypes(obj: Object) {
+    private _parseObjectToTypes(obj: Object): string {
         return '{\n' + Object.entries(obj)
             .map(([key, value]) => {
                 const safekey = wrapKey(key)
@@ -53,8 +53,8 @@ export class Json2Type {
      * @param {Array} arr 
      * @returns {string}
      */
-    private _parseArray(arr: string | any[]) {
-        let types = new Set()
+    private _printArrayType(arr: any[]) {
+        const typesSet = this._parseArray(arr)
         let T
         for (const value of arr) {
             types.add(_typeOf_NoRecurse(value))
@@ -78,7 +78,7 @@ export class Json2Type {
      * @param key 
      * @returns 
      */
-    private _checkThenParseObject(foo: any, key?: string) {
+    private _checkThenParseObject(foo: Object, key?: string) {
         if (foo instanceof Array) {
             return this._parseArray(foo)
         } else if (foo != null) {
@@ -101,7 +101,7 @@ export class Json2Type {
      * @param {string | undefined} key
      * @returns {string}
      */
-    private _typeof(foo: unknown, key: any) {
+    private _typeof(foo: any, key: string): string {
         let valueType = typeof foo
         switch (valueType) {
             case 'object':
