@@ -83,6 +83,7 @@ export class Json2Type {
             return this._parseArray(foo)
         } else if (foo != null) {
             const struct = this._parseObjectToTypes(foo, /* key */)
+            if (struct.match(/{\s*}/)) return struct
             const d = this._interface_cache.get(struct)
             if (d) {
                 return d.name
