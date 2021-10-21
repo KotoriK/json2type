@@ -6,10 +6,13 @@
  */
 import { pascalCase } from 'change-case'
 import { diffLines } from 'diff'
+interface InterfaceDefinition {
+    name: string
+}
 export class Json2Type {
     /**
      * @private
-     * @type {Map<string,import(".").InterfaceDefinition>}
+     * @type {Map<string,InterfaceDefinition>}
      */
     private _cache: Map<string, InterfaceDefinition> = new Map()
     private _cache_r: Map<string, string> = new Map()
@@ -17,7 +20,7 @@ export class Json2Type {
      * @private
      * @type {number}
      */
-    private _unname_interface_count = 0
+    private _unname_interface_count: number = 0
     private _printCache() {
         if (this._cache_r.size > 0) {
             const entries = Array.from(this._cache_r.entries())
@@ -33,7 +36,7 @@ export class Json2Type {
      * @param {Record<string,any>} obj 
      * @param {string} name
      */
-    parseToTypes(obj: Record<string, any>, name = 'DefaultInterface') {
+    parseToTypes(obj: Record<string, any>, name: string = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
         return `interface ${name}${this._parseObjectToTypes(obj)}\n${this._printCache()}`
     }
@@ -51,6 +54,7 @@ export class Json2Type {
             ).join('\n') + '\n}'
     }
     /**
+     * 推断数组内部元素的类型
      * @private
      * @param {Array} arr 
      * @returns {string}
@@ -203,7 +207,7 @@ export class Json2Type {
  * @param foo 
  * @returns {string}
  */
-function _typeOf_NoRecurse(foo: any) {
+function _typeOf_NoRecurse(foo: any): string {
     let valueType = typeof foo
     switch (valueType) {
         case 'object':
@@ -222,7 +226,7 @@ function _typeOf_NoRecurse(foo: any) {
     }
 }
 /**
- * 
+ * 将key包裹成符合JavaScript标识符要求的格式
  * @param {string} key 
  */
 function wrapKey(key: string) {
@@ -287,6 +291,6 @@ const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str !
  * @param {string} json
  * @param {string} name name of the generating interface 
  */
-export function parseToTypes(json: string, name = 'DefaultInterface') {
+export function parseToTypes(json: string, name: string = 'DefaultInterface') {
     return new Json2Type().parseToTypes(JSON.parse(json), name)
 }
