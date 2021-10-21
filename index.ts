@@ -20,7 +20,7 @@ export class Json2Type {
      * @private
      * @type {number}
      */
-    private _unname_interface_count: number = 0
+    private _unnameCount: number = 0
     private _printCache() {
         if (this._cache_r.size > 0) {
             const entries = Array.from(this._cache_r.entries())
@@ -197,10 +197,8 @@ export class Json2Type {
      * @private
      * @returns {string}
      */
-    private _defaultName() {
-        const r = 'I' + this._unname_interface_count
-        this._unname_interface_count++
-        return r
+    private _defaultName(): string {
+        return 'I' + this._unnameCount++
     }
 }
 /**
