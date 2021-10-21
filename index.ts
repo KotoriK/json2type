@@ -5,21 +5,23 @@
  * @license MIT
  */
 import { pascalCase } from 'change-case'
+import { diffLines } from 'diff'
 export class Json2Type {
     /**
      * @private
      * @type {Map<string,import(".").InterfaceDefinition>}
      */
-    private _interface_cache = new Map()
+    private _cache: Map<string, InterfaceDefinition> = new Map()
+    private _cache_r: Map<string, string> = new Map()
     /**
      * @private
      * @type {number}
      */
     private _unname_interface_count = 0
     private _printCache() {
-        if (this._interface_cache.size > 0) {
-            const entries = Array.from(this._interface_cache.entries())
-            return entries.map(([key, { name }]) => {
+        if (this._cache_r.size > 0) {
+            const entries = Array.from(this._cache_r.entries())
+            return entries.map(([name, key]) => {
                 return `interface ${name}${key}`
             }).join('\n')
         } else {
@@ -53,22 +55,48 @@ export class Json2Type {
      * @param {Array} arr 
      * @returns {string}
      */
-    private _printArrayType(arr: any[]) {
-        const typesSet = this._parseArray(arr)
+    private _printArrayType(arr: any[]): string {
+        const typesSet = new Set<string>()
+        for (const value of arr) {
+            typesSet.add(_typeOf_NoRecurse(value))
+        }
         let T
         for (const value of arr) {
-            types.add(_typeOf_NoRecurse(value))
+            typesSet.add(_typeOf_NoRecurse(value))
         }
-        if (types.size == 1 && types.has('Object')) {
-            types.clear()
+        if (typesSet.size == 1 && typesSet.has('Object')) {
+            typesSet.clear()
             for (const item of arr) {
-                types.add(this._checkThenParseObject(item))
+                typesSet.add(this._checkThenParseObject(item))
             }
-            T = Array.from(types.values()).join(' | ')
+            const types = Array.from(typesSet)
+            if (typesSet.size == 1) T = types.join(' | ')
+            else {
+                const structs = types.map(name => this._cache_r.get(name)) as string[] //值来自于前边返回，肯定在map中有登记
+                let majorStruct = structs[0]
+                let majorStructName = types[0]
+                for (let i = 1; i < structs.length; i++) {
+                    const trialStruct = structs[i]
+                    const result = mergeStruct(majorStruct, trialStruct)
+                    if (result) {
+                        majorStruct = result
+                        majorStructName = majorStructName.concat(types[i])
+                    } else {
+                        T = types.join(' | ')//如果类型不一样直接放弃合并
+                        return `Array<${T}>`
+                    }
+                }
+                for (let i = 0; i < structs.length; i++) {
+                    this._cache.set(structs[i], { name: majorStructName })
+                    this._cache_r.delete(types[i])
+                }
+                this._cache_r.set(majorStructName, majorStruct)
+                T = majorStructName
+            }
         } else if (arr.length === 0) {
             T = 'unknown'//空数组无法推断类型
         } else {
-            T = Array.from(types.values()).join(' | ')
+            T = Array.from(typesSet).join(' | ')
         }
         return `Array<${T}>`
     }
@@ -80,7 +108,7 @@ export class Json2Type {
      */
     private _checkThenParseObject(foo: Object, key?: string) {
         if (foo instanceof Array) {
-            return this._parseArray(foo)
+            return this._printArrayType(foo)
         } else if (foo != null) {
             if (key) {
                 const trial = this._tryParseIdMap(foo, key)
@@ -88,12 +116,30 @@ export class Json2Type {
             }
             const struct = this._parseObjectToTypes(foo, /* key */)
             if (struct.match(/{\s*}/)) return struct
-            const d = this._interface_cache.get(struct)
+            const d = this._cache.get(struct)
             if (d) {
                 return d.name
             } else {
-                const name = key ? pascalCase(key.match(/^["']\d/) ? ("I" + key) : key) : this._defaultName()
-                this._interface_cache.set(struct, { name })
+                let name = key ? pascalCase(key.match(/^["']\d/) ? ("I" + key) : key) : this._defaultName()
+                let structWithSameName: string | undefined
+                while (structWithSameName = this._cache_r.get(name)/*赋值表达式会返回赋予的值 */) {
+                    //是否可以合并
+                    const trialMerge = tryMergeStruct(structWithSameName, struct)
+                    if (trialMerge) {
+                        //填入新的记录
+                        this._cache.set(trialMerge, { name })
+                        //将两个结构重定向到新的结构
+                        this._cache.set(structWithSameName, { name })
+                        this._cache.set(struct, { name })
+                        this._cache_r.set(name, trialMerge)
+                        break//可以脱出循环了
+                    } else {
+                        //更名
+                        name = name.concat('_')
+                    }
+                }
+                this._cache_r.set(name, struct)
+                this._cache.set(struct, { name })
                 return name
             }
         }
@@ -190,6 +236,52 @@ function wrapKey(key: string) {
         return key
     }
 }
+/**
+ * 检查一个类型描述是不是描述一个详细的对象（即不object）
+ * @param type 
+ */
+const isTypeOfObject = (type: string) => type.startsWith('{') && type.endsWith('}')
+
+function tryMergeStruct(typeA: string, typeB: string) {
+    if (isTypeOfObject(typeA) && isTypeOfObject(typeB)) {
+        const [unchageFields, addedFields, removedFields] = diffStructs(typeA, typeB)
+        if (unchageFields.length >= (addedFields.length + removedFields.length)) {
+            return doMergeStruct(unchageFields, addedFields, removedFields)
+        }
+    }
+}
+const mergeStruct = (typeA: string, typeB: string) => doMergeStruct(...diffStructs(typeA, typeB))
+
+function diffStructs(typeA: string, typeB: string) {
+    const changes = diffLines(typeA.replaceAll(/^{|}/mg, ''), typeB.replaceAll(/^{|}/mg, ''))
+    const unchageFields = [], addedFields = [], removedFields = []
+    for (const change of changes) {
+        if (change.added) addedFields.push(...parseBackToKeyValue(change.value))
+        else if (change.removed) removedFields.push(...parseBackToKeyValue(change.value))
+        else unchageFields.push(...parseBackToKeyValue(change.value))
+    }
+    return [unchageFields, addedFields, removedFields] as const
+}
+function doMergeStruct(unchageFields: string[][], addedFields: string[][], removedFields: string[][]) {
+    //检查类型是否相同
+    const mapRemoved = Object.fromEntries(removedFields)
+    for (const [key] of addedFields) {
+        const typeRemoved = mapRemoved[key]
+        if (typeRemoved/*  && typeRemoved != type */) {
+            return undefined
+        }
+    }
+    //removed和added的字段全部标记可选
+
+    return "{\n" + [
+        ...[...addedFields, ...removedFields].map(([key, type]) => `${key}?:${type}`),
+        ...unchageFields.map(([key, type]) => `${key}:${type}`)
+    ]
+        .join('\n') + "\n}"
+}
+
+const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str != '').map(str => str.split(':'))
+
 /**
  * 
  * @param {string} json
