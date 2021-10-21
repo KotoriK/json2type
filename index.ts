@@ -88,7 +88,7 @@ export class Json2Type {
             if (d) {
                 return d.name
             } else {
-                const name = key ? pascalCase(key.match(/^\d/) ? ("I" + key) : key) : this._defaultName()
+                const name = key ? pascalCase(key.match(/^["']\d/) ? ("I" + key) : key) : this._defaultName()
                 this._interface_cache.set(struct, { name })
                 return name
             }
@@ -155,12 +155,14 @@ function _typeOf_NoRecurse(foo: any) {
  * 
  * @param {string} key 
  */
-    if (key.match(/^\d/) && key.match(/[A-Za-z]/)) {
 function wrapKey(key: string) {
+    //数字打头的Key
+    if (key.match(/^\d/)) {
         return `"${key}"`
-    } else if (key.match('_')) {
+    } else if (key.match(/[\u0000-#%-/:-@[-^`{-\u007f]/)) {//ASCII中没有ID_Start和ID_Continue也不是'$','_'的字符
         return `"${key}"`
     } else {
+        //非ASCII的用例太罕见，不做处理
         return key
     }
 }
