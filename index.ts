@@ -186,9 +186,6 @@ export class Json2Type {
             case 'number':
             case "string":
                 return valueType
-            case "symbol":
-            case 'bigint':
-            case 'function':
             default:
                 throw valueType + " isn't support yet."
         }
@@ -216,9 +213,6 @@ function _typeOf_NoRecurse(foo: any): string {
         case 'number':
         case "string":
             return valueType
-        case "symbol":
-        case 'bigint':
-        case 'function':
         default:
             throw valueType + " isn't support yet."
     }
