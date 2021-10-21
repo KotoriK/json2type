@@ -35,7 +35,7 @@ export class Json2Type {
      */
     parseToTypes(obj: Record<string, any>, name = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
-        return `interface ${name}${this._parseObjectToTypes(obj)}${this._printCache()}`
+        return `interface ${name}${this._parseObjectToTypes(obj)}\n${this._printCache()}`
     }
     /**
      * @private
