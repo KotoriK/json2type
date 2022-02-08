@@ -193,10 +193,9 @@ export class Json2Type {
             case 'object':
                 return this._checkThenParseObject(foo, key)
             /**按原样 */
-            case "undefined":
-            case 'boolean':
-            case 'number':
             case "string":
+            case 'number':
+            case 'boolean':
                 return valueType
             default:
                 throw valueType + " isn't support yet."
@@ -220,10 +219,9 @@ function _typeOf_NoRecurse(foo: any): string {
         case 'object':
             return 'Object'
         /**按原样 */
-        case "undefined":
-        case 'boolean':
-        case 'number':
         case "string":
+        case 'number':
+        case 'boolean':
             return valueType
         default:
             throw valueType + " isn't support yet."
