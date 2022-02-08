@@ -217,7 +217,11 @@ function _typeOf_NoRecurse(foo: any): string {
     let valueType = typeof foo
     switch (valueType) {
         case 'object':
-            return 'Object'
+            //应该处理null值
+            /*             if(foo === null){
+                            return 
+                        } */
+            return 'Record<string,any>'
         /**按原样 */
         case "string":
         case 'number':
