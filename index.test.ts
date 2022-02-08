@@ -1,5 +1,5 @@
 import test from "tape";
-import { parseToTypes } from './'
+import { parseToTypes } from './index'
 test("{} should return {}", (t) => {
     t.true(parseToTypes('{"a":{}}').replace(/\s/g, '').match('a:{}'))
     t.end()
@@ -38,5 +38,22 @@ test('should merge interface with same name', (t) => {
             }
         }
     })))
+    t.end()
+})
+test('sort field by alphabet', t => {
+    const a = parseToTypes(JSON.stringify({
+        b: 1, a: 2, c: 3, aa: 4
+    }))
+    t.equal(a, 'interface DefaultInterface{\na:number\naa:number\nb:number\nc:number\n}\n')
+    t.end()
+})
+test('same structs which fields appear in different sort should merge in one struct', (t) => {
+    const a = parseToTypes(JSON.stringify({
+        aa: 1, b: 2, a: 3
+    }))
+    const b = parseToTypes(JSON.stringify({
+        a: 1, b: 2, aa: 3
+    }))
+    t.equal(a,b)
     t.end()
 })

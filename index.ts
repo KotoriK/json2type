@@ -47,11 +47,23 @@ export class Json2Type {
      */
     private _parseObjectToTypes(obj: Object): string {
         return '{\n' + Object.entries(obj)
+            .sort(([key_a], [key_b]) => {
+                const safeLen = Math.min(key_a.length, key_b.length)
+                let diff
+                for (let i = 0; i < safeLen; i++) {
+                    diff = key_a.charCodeAt(i) - key_b.charCodeAt(i)
+                    if (diff !== 0) {
+                        return diff
+                    }
+                }
+                return key_a.length - key_b.length
+            })
             .map(([key, value]) => {
                 const safekey = wrapKey(key)
                 return `${safekey}:${this._typeof(value, safekey)}`
             }
-            ).join('\n') + '\n}'
+            )
+            .join('\n') + '\n}'
     }
     /**
      * 推断数组内部元素的类型
