@@ -120,22 +120,22 @@ export class Json2Type {
             }
             const struct = this._parseObjectToTypes(foo, /* key */)
             if (struct.match(/{\s*}/)) return struct
-            const d = this._cache.get(struct)
-            if (d) {
-                return d.name
+            const define = this._cache.get(struct)
+            if (define) {
+                return define.name
             } else {
                 let name = key ? pascalCase(key.match(/^["']\d/) ? ("I" + key) : key) : this._defaultName()
                 let structWithSameName: string | undefined
                 while (structWithSameName = this._cache_r.get(name)/*赋值表达式会返回赋予的值 */) {
                     //是否可以合并
-                    const trialMerge = tryMergeStruct(structWithSameName, struct)
-                    if (trialMerge) {
+                    const mergeTrial = tryMergeStruct(structWithSameName, struct)
+                    if (mergeTrial) {
                         //填入新的记录
-                        this._cache.set(trialMerge, { name })
+                        this._cache.set(mergeTrial, { name })
                         //将两个结构重定向到新的结构
                         this._cache.set(structWithSameName, { name })
                         this._cache.set(struct, { name })
-                        this._cache_r.set(name, trialMerge)
+                        this._cache_r.set(name, mergeTrial)
                         break//可以脱出循环了
                     } else {
                         //更名
