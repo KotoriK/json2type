@@ -6,6 +6,8 @@
  */
 import { pascalCase } from 'change-case'
 import { diffLines } from 'diff'
+import { singular } from 'pluralize'
+type KeyValuePair<TValue> = [string, TValue]
 export class Json2Type {
     /**
      * 结构信息->名字
@@ -44,18 +46,7 @@ export class Json2Type {
     private _parseObjectToTypes(obj: Object): string {
         return '{\n'
             + Object.entries(obj)
-                .sort(
-                    ([key_a], [key_b]) => {
-                        const safeLen = Math.min(key_a.length, key_b.length)
-                        let diff
-                        for (let i = 0; i < safeLen; i++) {
-                            diff = key_a.charCodeAt(i) - key_b.charCodeAt(i)
-                            if (diff !== 0) {
-                                return diff
-                            }
-                        }
-                        return key_a.length - key_b.length
-                    })
+                .sort(_sortKeys)
                 .map(
                     ([key, value]) => {
                         const safekey = wrapKey(key)
@@ -67,9 +58,10 @@ export class Json2Type {
      * 推断数组内部元素的类型
      * @private
      * @param {Array} arr 
+     * @param {string} key 数组的字段名，用于命名内部元素
      * @returns {string}
      */
-    private _printArrayType(arr: any[]): string {
+    private _printArrayType(arr: any[], key?: string): string {
         const typesSet = new Set<string>()
         let T
         for (const value of arr) {
@@ -79,11 +71,12 @@ export class Json2Type {
             //全是对象
             typesSet.clear()
             for (const item of arr) {
-                typesSet.add(this._checkThenParseObject(item))
+                typesSet.add(this._checkThenParseObject(item, key && singular(key)))
             }
             const types = Array.from(typesSet)
-            if (typesSet.size == 1) T = types.join(' | ')
-            else {
+            if (typesSet.size == 1) {
+                T = types[0]
+            } else {
                 const structs = types.map(name => this._cache_r[name]) as string[] //值来自于前边返回，肯定在map中有登记
                 let majorStruct = structs[0]
                 let majorStructName = types[0]
@@ -120,7 +113,7 @@ export class Json2Type {
      */
     private _checkThenParseObject(foo: Object, key?: string) {
         if (foo instanceof Array) {
-            return this._printArrayType(foo)
+            return this._printArrayType(foo, key)
         } else if (foo != null) {
             if (key) {
                 const trial = this._tryParseIdMap(foo, key)
@@ -164,14 +157,14 @@ export class Json2Type {
      * @param key 
      * @returns 
      */
-    private _tryParseIdMap(foo: Object, key: string) {
-        const parentKey = key
+    private _tryParseIdMap(foo: Object, parentKey: string) {
         const keys = Array.from(Object.keys(foo))
         if (keys.length > 0 && keys.every((item) => item.match(/^\d+$/))) {
+            const parentKey_singlar = singular(parentKey)
             return `{[id:number]:${Array.from(
                 new Set(
                     Object.values(foo)
-                        .map(value => this._typeof(value, parentKey))
+                        .map(value => this._typeof(value, parentKey_singlar))
                 )
             )
                 .join('|')}}`
@@ -259,7 +252,9 @@ const mergeStruct = (typeA: string, typeB: string) => doMergeStruct(...diffStruc
 
 function diffStructs(typeA: string, typeB: string) {
     const changes = diffLines(typeA.replaceAll(/^{|}/mg, ''), typeB.replaceAll(/^{|}/mg, ''))
-    const unchageFields = [], addedFields = [], removedFields = []
+    const unchageFields: KeyValuePair<string>[] = []
+    const addedFields: KeyValuePair<string>[] = []
+    const removedFields: KeyValuePair<string>[] = []
     for (const change of changes) {
         if (change.added) addedFields.push(...parseBackToKeyValue(change.value))
         else if (change.removed) removedFields.push(...parseBackToKeyValue(change.value))
@@ -267,7 +262,7 @@ function diffStructs(typeA: string, typeB: string) {
     }
     return [unchageFields, addedFields, removedFields] as const
 }
-function doMergeStruct(unchageFields: string[][], addedFields: string[][], removedFields: string[][]) {
+function doMergeStruct(unchageFields: KeyValuePair<string>[], addedFields: KeyValuePair<string>[], removedFields: KeyValuePair<string>[]) {
     //检查类型是否相同
     const mapRemoved = Object.fromEntries(removedFields)
     for (const [key, type] of addedFields) {
@@ -277,17 +272,26 @@ function doMergeStruct(unchageFields: string[][], addedFields: string[][], remov
         }
     }
     //removed和added的字段全部标记可选
-
-    //TODO: 排序字段
     return "{\n" + [
-        ...[...addedFields, ...removedFields].map(([key, type]) => `${key}?:${type}`),
+        ...[...addedFields, ...removedFields].sort(_sortKeys).map(([key, type]) => `${key}?:${type}`),
         ...unchageFields.map(([key, type]) => `${key}:${type}`)
     ]
         .join('\n') + "\n}"
 }
 
-const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str != '').map(str => str.split(':'))
+const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str != '').map(str => str.split(':')) as unknown as KeyValuePair<string>[]
 
+function _sortKeys<TValue>([key_a]: KeyValuePair<TValue>, [key_b]: KeyValuePair<TValue>) {
+    const safeLen = Math.min(key_a.length, key_b.length)
+    let diff
+    for (let i = 0; i < safeLen; i++) {
+        diff = key_a.charCodeAt(i) - key_b.charCodeAt(i)
+        if (diff !== 0) {
+            return diff
+        }
+    }
+    return key_a.length - key_b.length
+}
 /**
  * 
  * @param {string} json

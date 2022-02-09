@@ -24,6 +24,9 @@
     "url": "https://www.github.com/KotoriK/json2type"
   },
   "license": "MIT",
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "change-case": "^4.1.2",
     "diff": "^5.0.0"
