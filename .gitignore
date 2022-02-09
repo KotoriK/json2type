@@ -3,3 +3,4 @@ input.txt
 output.ts
 .DS_Store
 package-lock.json
+.nyc_output
