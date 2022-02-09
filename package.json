@@ -29,11 +29,11 @@
   ],
   "dependencies": {
     "change-case": "^4.1.2",
-    "diff": "^5.0.0"
+    "diff": "^5.0.0",
+    "pluralize": "^8.0.0"
   },
   "devDependencies": {
     "microbundle": "^0.14.2",
-    "pluralize": "^8.0.0",
     "@types/diff": "^5.0.2",
     "@types/node": "^17.0.16",
     "@types/pluralize": "^0.0.29",
