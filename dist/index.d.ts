@@ -1,14 +1,12 @@
 export declare class Json2Type {
     /**
-     * @private
-     * @type {Map<string,InterfaceDefinition>}
+     * 结构信息->名字
      */
     private _cache;
-    private _cache_r;
     /**
-     * @private
-     * @type {number}
+     * 名字->结构信息
      */
+    private _cache_r;
     private _unnameCount;
     private _printCache;
     /**
@@ -27,6 +25,7 @@ export declare class Json2Type {
      * 推断数组内部元素的类型
      * @private
      * @param {Array} arr
+     * @param {string} key 数组的字段名，用于命名内部元素
      * @returns {string}
      */
     private _printArrayType;
@@ -64,3 +63,4 @@ export declare class Json2Type {
  * @param {string} name name of the generating interface
  */
 export declare function parseToTypes(json: string, name?: string): string;
+//# sourceMappingURL=index.d.ts.map
