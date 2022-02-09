@@ -6,27 +6,23 @@
  */
 import { pascalCase } from 'change-case'
 import { diffLines } from 'diff'
-interface InterfaceDefinition {
-    name: string
-}
 export class Json2Type {
     /**
-     * @private
-     * @type {Map<string,InterfaceDefinition>}
+     * 结构信息->名字
      */
-    private _cache: Map<string, InterfaceDefinition> = new Map()
-    private _cache_r: Map<string, string> = new Map()
+    private _cache: Record<string, string> = {}
     /**
-     * @private
-     * @type {number}
+     * 名字->结构信息
      */
+    private _cache_r: Record<string, string> = {}
+
     private _unnameCount: number = 0
     private _printCache() {
-        if (this._cache_r.size > 0) {
-            const entries = Array.from(this._cache_r.entries())
-            return entries.map(([name, key]) => {
-                return `interface ${name}${key}`
-            }).join('\n')
+        const cacheReverseEntries = Object.entries(this._cache_r)
+        if (cacheReverseEntries.length > 0) {
+            return cacheReverseEntries
+                .map(([name, key]) => `interface ${name}${key}`)
+                .join('\n')
         } else {
             return ''
         }
@@ -46,24 +42,26 @@ export class Json2Type {
      * @returns {string}
      */
     private _parseObjectToTypes(obj: Object): string {
-        return '{\n' + Object.entries(obj)
-            .sort(([key_a], [key_b]) => {
-                const safeLen = Math.min(key_a.length, key_b.length)
-                let diff
-                for (let i = 0; i < safeLen; i++) {
-                    diff = key_a.charCodeAt(i) - key_b.charCodeAt(i)
-                    if (diff !== 0) {
-                        return diff
+        return '{\n'
+            + Object.entries(obj)
+                .sort(
+                    ([key_a], [key_b]) => {
+                        const safeLen = Math.min(key_a.length, key_b.length)
+                        let diff
+                        for (let i = 0; i < safeLen; i++) {
+                            diff = key_a.charCodeAt(i) - key_b.charCodeAt(i)
+                            if (diff !== 0) {
+                                return diff
+                            }
+                        }
+                        return key_a.length - key_b.length
+                    })
+                .map(
+                    ([key, value]) => {
+                        const safekey = wrapKey(key)
+                        return `${safekey}:${this._typeof(value, safekey)}`
                     }
-                }
-                return key_a.length - key_b.length
-            })
-            .map(([key, value]) => {
-                const safekey = wrapKey(key)
-                return `${safekey}:${this._typeof(value, safekey)}`
-            }
-            )
-            .join('\n') + '\n}'
+                ).join('\n') + '\n}'
     }
     /**
      * 推断数组内部元素的类型
@@ -73,14 +71,12 @@ export class Json2Type {
      */
     private _printArrayType(arr: any[]): string {
         const typesSet = new Set<string>()
-        for (const value of arr) {
-            typesSet.add(_typeOf_NoRecurse(value))
-        }
         let T
         for (const value of arr) {
             typesSet.add(_typeOf_NoRecurse(value))
         }
-        if (typesSet.size == 1 && typesSet.has('Object')) {
+        if (typesSet.size == 1 && typesSet.has('Record<string,any>')) {
+            //全是对象
             typesSet.clear()
             for (const item of arr) {
                 typesSet.add(this._checkThenParseObject(item))
@@ -88,7 +84,7 @@ export class Json2Type {
             const types = Array.from(typesSet)
             if (typesSet.size == 1) T = types.join(' | ')
             else {
-                const structs = types.map(name => this._cache_r.get(name)) as string[] //值来自于前边返回，肯定在map中有登记
+                const structs = types.map(name => this._cache_r[name]) as string[] //值来自于前边返回，肯定在map中有登记
                 let majorStruct = structs[0]
                 let majorStructName = types[0]
                 for (let i = 1; i < structs.length; i++) {
@@ -103,10 +99,10 @@ export class Json2Type {
                     }
                 }
                 for (let i = 0; i < structs.length; i++) {
-                    this._cache.set(structs[i], { name: majorStructName })
-                    this._cache_r.delete(types[i])
+                    this._cache[structs[i]] = majorStructName
+                    delete this._cache_r[types[i]]
                 }
-                this._cache_r.set(majorStructName, majorStruct)
+                this._cache_r[majorStructName] = majorStruct
                 T = majorStructName
             }
         } else if (arr.length === 0) {
@@ -132,30 +128,30 @@ export class Json2Type {
             }
             const struct = this._parseObjectToTypes(foo, /* key */)
             if (struct.match(/{\s*}/)) return struct
-            const define = this._cache.get(struct)
+            const define = this._cache[struct]
             if (define) {
-                return define.name
+                return define
             } else {
                 let name = key ? pascalCase(key.match(/^["']\d/) ? ("I" + key) : key) : this._defaultName()
                 let structWithSameName: string | undefined
-                while (structWithSameName = this._cache_r.get(name)/*赋值表达式会返回赋予的值 */) {
+                while (structWithSameName = this._cache_r[name]/*赋值表达式会返回赋予的值 */) {
                     //是否可以合并
                     const mergeTrial = tryMergeStruct(structWithSameName, struct)
                     if (mergeTrial) {
                         //填入新的记录
-                        this._cache.set(mergeTrial, { name })
+                        this._cache[mergeTrial] = name
                         //将两个结构重定向到新的结构
-                        this._cache.set(structWithSameName, { name })
-                        this._cache.set(struct, { name })
-                        this._cache_r.set(name, mergeTrial)
-                        break//可以脱出循环了
+                        this._cache[structWithSameName] = name
+                        this._cache[struct] = name
+                        this._cache_r[name] = mergeTrial
+                        return name//可以脱出循环了
                     } else {
                         //更名
                         name = name.concat('_')
                     }
                 }
-                this._cache_r.set(name, struct)
-                this._cache.set(struct, { name })
+                this._cache_r[name] = struct
+                this._cache[struct] = name
                 return name
             }
         }
@@ -217,10 +213,9 @@ function _typeOf_NoRecurse(foo: any): string {
     let valueType = typeof foo
     switch (valueType) {
         case 'object':
-            //应该处理null值
-            /*             if(foo === null){
-                            return 
-                        } */
+            if (foo === null) {
+                return 'undefined'
+            }
             return 'Record<string,any>'
         /**按原样 */
         case "string":
@@ -275,14 +270,15 @@ function diffStructs(typeA: string, typeB: string) {
 function doMergeStruct(unchageFields: string[][], addedFields: string[][], removedFields: string[][]) {
     //检查类型是否相同
     const mapRemoved = Object.fromEntries(removedFields)
-    for (const [key] of addedFields) {
+    for (const [key, type] of addedFields) {
         const typeRemoved = mapRemoved[key]
-        if (typeRemoved/*  && typeRemoved != type */) {
+        if (typeRemoved && typeRemoved != type) {
             return undefined
         }
     }
     //removed和added的字段全部标记可选
 
+    //TODO: 排序字段
     return "{\n" + [
         ...[...addedFields, ...removedFields].map(([key, type]) => `${key}?:${type}`),
         ...unchageFields.map(([key, type]) => `${key}:${type}`)
