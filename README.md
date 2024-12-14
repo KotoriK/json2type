@@ -2,11 +2,16 @@
 
 Generate TypeScript Type Definition from JSON.
 
-**NOT PROPERLY TESTED**, but should be suit for most cases.
+Should be suit for most cases. Be free to feedback.
+
+**TRY ONLINE**: https://utils-kotorik.vercel.app/json2type
 
 ## Requirement
+
 * Runtime should support ES Module (*.mjs)
+
 ## Usage
+
 ```js
 import {parseToTypes} from 'json2type'
 
