@@ -101,7 +101,7 @@ export class Json2Type {
         } else if (arr.length === 0) {
             T = 'unknown'//空数组无法推断类型
         } else {
-            T = Array.from(typesSet).join(' | ')
+            T = _iteratorJoin(typesSet, ' | ')
         }
         return `Array<${T}>`
     }
@@ -158,16 +158,16 @@ export class Json2Type {
      * @returns 
      */
     private _tryParseIdMap(foo: Object, parentKey: string) {
-        const keys = Array.from(Object.keys(foo))
+        const keys = Object.keys(foo)
         if (keys.length > 0 && keys.every((item) => item.match(/^\d+$/))) {
             const parentKey_singlar = singular(parentKey)
-            return `{[id:number]:${Array.from(
+            return `{[id:number]:${_iteratorJoin(
                 new Set(
                     Object.values(foo)
                         .map(value => this._typeof(value, parentKey_singlar))
                 )
-            )
-                .join('|')}}`
+                , '|')
+                }}`
         }
     }
     /**
@@ -271,12 +271,17 @@ function doMergeStruct(unchageFields: KeyValuePair<string>[], addedFields: KeyVa
             return undefined
         }
     }
-    //removed和added的字段全部标记可选
-    return "{\n" + [
-        ...[...addedFields, ...removedFields].sort(_sortKeys).map(([key, type]) => `${key}?:${type}`),
-        ...unchageFields.map(([key, type]) => `${key}:${type}`)
-    ]
-        .join('\n') + "\n}"
+
+    const optionalFields = [...addedFields, ...removedFields]
+    for (const arr of optionalFields) {
+        arr[0] += "?" //removed和added的字段全部标记可选
+    }
+
+    return "{\n" + Array.from(_concat(unchageFields, optionalFields))
+        .sort(_sortKeys)
+        .map(([key, type]) => `${key}:${type}`)
+        .join('\n')
+        + "\n}"
 }
 
 const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str != '').map(str => str.split(':')) as unknown as KeyValuePair<string>[]
@@ -291,6 +296,21 @@ function _sortKeys<TValue>([key_a]: KeyValuePair<TValue>, [key_b]: KeyValuePair<
         }
     }
     return key_a.length - key_b.length
+}
+
+function _iteratorJoin(iterable: Iterable<string>, separator: string) {
+    let result = ''
+    for (const item of iterable) {
+        result += item + separator
+    }
+    return result.slice(0, -separator.length)
+}
+function* _concat<T>(...iterables: Iterable<T>[]) {
+    for (const iterable of iterables) {
+        for (const item of iterable) {
+            yield item
+        }
+    }
 }
 /**
  * 
