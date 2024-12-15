@@ -6,7 +6,9 @@
  */
 import { pascalCase } from 'change-case'
 import { diffLines } from 'diff'
-import { singular } from 'pluralize'
+
+import pluralize from 'pluralize'
+const singular = pluralize.singular
 type KeyValuePair<TValue> = [string, TValue]
 export class Json2Type {
     /**
@@ -243,9 +245,7 @@ const isTypeOfObject = (type: string) => type.startsWith('{') && type.endsWith('
 function tryMergeStruct(typeA: string, typeB: string) {
     if (isTypeOfObject(typeA) && isTypeOfObject(typeB)) {
         const [unchageFields, addedFields, removedFields] = diffStructs(typeA, typeB)
-        if (unchageFields.length >= (addedFields.length + removedFields.length)) {
-            return doMergeStruct(unchageFields, addedFields, removedFields)
-        }
+        return doMergeStruct(unchageFields, addedFields, removedFields)
     }
 }
 const mergeStruct = (typeA: string, typeB: string) => doMergeStruct(...diffStructs(typeA, typeB))
@@ -262,29 +262,57 @@ function diffStructs(typeA: string, typeB: string) {
     }
     return [unchageFields, addedFields, removedFields] as const
 }
+function _isPrimitiveType(type: string) {
+    switch (type) {
+        case 'string':
+        case "boolean":
+        case "number":
+            return true
+        default:
+            return false
+    }
+}
 function doMergeStruct(unchageFields: KeyValuePair<string>[], addedFields: KeyValuePair<string>[], removedFields: KeyValuePair<string>[]) {
     //检查类型是否相同
     const mapRemoved = Object.fromEntries(removedFields)
-    for (const [key, type] of addedFields) {
-        const typeRemoved = mapRemoved[key]
-        if (typeRemoved && typeRemoved != type) {
-            return undefined
+    const typeMerged = [] as KeyValuePair<string>[]
+    const optionalFields = [] as KeyValuePair<string>[]
+
+    for (const arr of addedFields) {
+        const [key, type] = arr
+        let removedKey = key
+        let typeRemoved = mapRemoved[removedKey] || mapRemoved[removedKey = key + "?"]
+        if (typeRemoved) {
+            if (typeRemoved !== type) {
+                if (_isPrimitiveType(typeRemoved) && _isPrimitiveType(type)) {
+                    arr[1] = typeRemoved + '|' + type
+                } else if (typeRemoved === 'null' || type === 'null') {
+                    arr[0] += "?"
+                } else {
+                    return undefined
+                }
+                typeMerged.push(arr)
+                delete mapRemoved[removedKey]
+            }
+        } else {
+            optionalFields.push(arr)
         }
     }
-
-    const optionalFields = [...addedFields, ...removedFields]
-    for (const arr of optionalFields) {
-        arr[0] += "?" //removed和added的字段全部标记可选
+    // push back
+    for (const i of Object.entries(mapRemoved)) {
+        optionalFields.push(i)
     }
 
-    return "{\n" + Array.from(_concat(unchageFields, optionalFields))
+    return "{\n" + Array.from(
+        _concat(unchageFields, typeMerged, optionalFields.map(([key, type]) => [key.endsWith('?') ? key : key + '?', type])) as Iterable<KeyValuePair<string>>)
         .sort(_sortKeys)
         .map(([key, type]) => `${key}:${type}`)
         .join('\n')
         + "\n}"
 }
 
-const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str != '').map(str => str.split(':')) as unknown as KeyValuePair<string>[]
+const parseBackToKeyValue = (str: string) => str.split('\n').filter(str => str)
+    .map(str => str.split(':')) as unknown as KeyValuePair<string>[]
 
 function _sortKeys<TValue>([key_a]: KeyValuePair<TValue>, [key_b]: KeyValuePair<TValue>) {
     const safeLen = Math.min(key_a.length, key_b.length)
