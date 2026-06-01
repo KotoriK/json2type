@@ -1,9 +1,10 @@
 import dts from "vite-plugin-dts";
 import { readFileSync } from "fs";
+import { defineConfig } from "vitest/config";
 /**
  * @type {import('vite').UserConfig}
  */
-export default {
+export default defineConfig({
     plugins: [dts()],
     build: {
         target: 'esnext',
@@ -17,4 +18,8 @@ export default {
         }
 
     },
-}
+    test: {
+        include: ['index.test.ts'],
+        environment: 'node',
+    },
+})
