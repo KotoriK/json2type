@@ -8,6 +8,7 @@ import { pascalCase } from 'change-case'
 import { diffLines } from 'diff'
 
 import pluralize from 'pluralize'
+import ts from 'typescript'
 const singular = pluralize.singular
 type KeyValuePair<TValue> = [string, TValue]
 export class Json2Type {
@@ -21,16 +22,6 @@ export class Json2Type {
     private _cache_r: Record<string, string> = {}
 
     private _unnameCount: number = 0
-    private _printCache() {
-        const cacheReverseEntries = Object.entries(this._cache_r)
-        if (cacheReverseEntries.length > 0) {
-            return cacheReverseEntries
-                .map(([name, key]) => `interface ${name}${key}`)
-                .join('\n')
-        } else {
-            return ''
-        }
-    }
     /**
      * 
      * @param {Record<string,any>} obj 
@@ -38,7 +29,9 @@ export class Json2Type {
      */
     parseToTypes(obj: Record<string, any>, name: string = 'DefaultInterface') {
         if (typeof obj !== 'object') throw TypeError('param "obj" must be an object, but got ' + typeof obj)
-        return `interface ${name}${this._parseObjectToTypes(obj)}\n${this._printCache()}`
+        const rootStruct = this._parseObjectToTypes(obj)
+        const declarations = [[name, rootStruct] as const, ...Object.entries(this._cache_r)]
+        return buildInterfacesSource(declarations)
     }
     /**
      * @private
@@ -339,6 +332,93 @@ function* _concat<T>(...iterables: Iterable<T>[]) {
             yield item
         }
     }
+}
+
+function buildInterfacesSource(entries: ReadonlyArray<readonly [string, string]>) {
+    const statements = entries.map(([name, struct]) =>
+        ts.factory.createInterfaceDeclaration(
+            undefined,
+            name,
+            undefined,
+            undefined,
+            parseStructToMembers(struct),
+        ))
+    const sourceFile = ts.factory.createSourceFile(
+        statements,
+        ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
+        ts.NodeFlags.None,
+    )
+    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed })
+    return printer.printFile(sourceFile)
+}
+
+function parseStructToMembers(struct: string) {
+    return struct
+        .replaceAll(/^{|}/mg, '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const [key, type] = splitStructLine(line)
+            const indexSignatureMatch = key.match(/^\[(\w+):(number|string)\](\?)?$/)
+            if (indexSignatureMatch) {
+                const [, parameterName, parameterType, isOptional] = indexSignatureMatch
+                const valueType = isOptional
+                    ? ts.factory.createUnionTypeNode([parseTypeNode(type), ts.factory.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword)])
+                    : parseTypeNode(type)
+                return ts.factory.createIndexSignature(
+                    undefined,
+                    [ts.factory.createParameterDeclaration(undefined, undefined, undefined, parameterName, undefined, parseTypeNode(parameterType), undefined)],
+                    valueType,
+                )
+            }
+
+            const isOptional = key.endsWith('?')
+            const normalizedKey = isOptional ? key.slice(0, -1) : key
+            const propertyName = normalizedKey.match(/^".*"$/)
+                ? ts.factory.createStringLiteral(normalizedKey.slice(1, -1))
+                : ts.factory.createIdentifier(normalizedKey)
+
+            return ts.factory.createPropertySignature(
+                undefined,
+                propertyName,
+                isOptional ? ts.factory.createToken(ts.SyntaxKind.QuestionToken) : undefined,
+                parseTypeNode(type),
+            )
+        })
+}
+
+function splitStructLine(line: string) {
+    const optionalIndexSignatureSeparator = ']?:'
+    const indexSignatureSeparator = ']:'
+    const optionalIndexSignatureOffset = line.indexOf(optionalIndexSignatureSeparator)
+    if (optionalIndexSignatureOffset > -1) {
+        return [line.slice(0, optionalIndexSignatureOffset + 2), line.slice(optionalIndexSignatureOffset + optionalIndexSignatureSeparator.length)] as const
+    }
+    const indexSignatureOffset = line.indexOf(indexSignatureSeparator)
+    if (indexSignatureOffset > -1) {
+        return [line.slice(0, indexSignatureOffset + 1), line.slice(indexSignatureOffset + indexSignatureSeparator.length)] as const
+    }
+    const keyValueSeparatorOffset = line.indexOf(':')
+    if (keyValueSeparatorOffset < 0) {
+        throw new TypeError(`Invalid struct line: ${line}`)
+    }
+    return [line.slice(0, keyValueSeparatorOffset), line.slice(keyValueSeparatorOffset + 1)] as const
+}
+
+function parseTypeNode(type: string) {
+    const sourceFile = ts.createSourceFile(
+        'type.ts',
+        `type __T = ${type};`,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+    )
+    const declaration = sourceFile.statements[0]
+    if (ts.isTypeAliasDeclaration(declaration)) {
+        return declaration.type
+    }
+    throw new TypeError(`Invalid type node: ${type}`)
 }
 /**
  * 

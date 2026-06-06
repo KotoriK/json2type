@@ -8,7 +8,6 @@ export declare class Json2Type {
      */
     private _cache_r;
     private _unnameCount;
-    private _printCache;
     /**
      *
      * @param {Record<string,any>} obj

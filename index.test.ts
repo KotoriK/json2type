@@ -1,30 +1,22 @@
-import { test, describe, it } from 'node:test'
+import { describe, expect, it, test } from 'vitest'
 import { parseToTypes } from './index.js'
-import assert from 'node:assert';
 
-test("{} should return {}", () => {
-    assert.match(parseToTypes('{"a":{}}').replace(/\s/g, ''), new RegExp('a:{}'))
+test('{} should return {}', () => {
+    expect(parseToTypes('{"a":{}}').replace(/\s|;/g, '')).toMatch(/a:{}/)
+})
 
-});
 test('[] should return Array<unknown>', () => {
-    assert.match(parseToTypes('{"a":[]}').replace(/\s/g, ''), new RegExp('a:Array<unknown>'))
-
+    expect(parseToTypes('{"a":[]}').replace(/\s|;/g, '')).toMatch(/a:Array<unknown>/)
 })
+
 test('should return Array<number>', () => {
-    assert.match(parseToTypes('{"a":[1]}').replace(/\s/g, ''), new RegExp('a:Array<number>'))
-
+    expect(parseToTypes('{"a":[1]}').replace(/\s|;/g, '')).toMatch(/a:Array<number>/)
 })
+
 test('should return Array<undefined>', () => {
-    assert.match(parseToTypes('{"a":[null]}').replace(/\s/g, ''), new RegExp('a:Array<undefined>'))
-
+    expect(parseToTypes('{"a":[null]}').replace(/\s|;/g, '')).toMatch(/a:Array<undefined>/)
 })
-/* test('should return Array<number|string>', () => {
-    assert.ok(parseToTypes('{"a":[1,"1"]}').replace(/\s/g, '').match(/a:Array<(?:number|string)\|(?:string|number)>/))
-})
-test('interface name starts with number should be wrapped', () => {
-    assert.ok(!parseToTypes('{"114514":{"a":{}}}').replace(/\s/g, '').match('interface 114514'))
 
-}) */
 describe('merge interface', () => {
     const result = parseToTypes(JSON.stringify({
         artwork_a: {
@@ -32,157 +24,171 @@ describe('merge interface', () => {
                 name: 'a',
                 id: 114514,
                 translation: {
-                    cn: "啊"
-                }
-            }
+                    cn: '啊',
+                },
+            },
         },
         artwork_b: {
             tag: {
                 name: 'b',
                 id: 1919,
-            }
+            },
         },
         artwork_c: {
             tag: {
                 name: 'c',
                 id: 810,
-            }
+            },
         },
         artwork_d: {
             tag: {
                 name: 'd',
                 id: 1,
                 translation: {
-                    cn: "哦",
-                    en: "ohh"
-                }
-            }
-        }
-    })).replace(/\s/g, '')
+                    cn: '哦',
+                    en: 'ohh',
+                },
+            },
+        },
+    })).replace(/\s|;/g, '')
 
     test('reuse interface', () => {
-        assert.match(result, /artwork_\w:ArtworkA/)
-        assert.match(result, /tag:Tag/)
-        assert.doesNotMatch(result, /Artwork[B|C|D]/)
-
+        expect(result).toMatch(/artwork_\w:ArtworkA/)
+        expect(result).toMatch(/tag:Tag/)
+        expect(result).not.toMatch(/Artwork[B|C|D]/)
     })
-    test('merge "Translation"', t => {
-        assert.match(result, /cn:stringen\?:string/)
 
+    test('merge "Translation"', () => {
+        expect(result).toMatch(/cn:stringen\?:string/)
     })
 })
+
 describe('try to merge struct that same field has different type', () => {
     const result = parseToTypes(JSON.stringify({
         itemList: [
             {
-                a: 1
+                a: 1,
             },
             {
-                a: '1'
+                a: '1',
             },
-        ]
-    }))
-    test('should merge to one struct', t => {
-        assert.match(result, /interface ItemList{/)
-        assert.match(result, /a:number\|string/)
+        ],
+    })).replace(/\s|;/g, '')
+
+    test('should merge to one struct', () => {
+        expect(result).toMatch(/interfaceItemList{/)
+        expect(result).toMatch(/a:number\|string/)
     })
 })
+
 describe('optional fields can be merge later', () => {
     const result = parseToTypes(JSON.stringify({
         itemList: [
             {
                 translation: {
                     cn: '中文',
-                }
+                },
             },
             {
                 translation: {
                     en: 'English',
-                }
+                },
             },
             {
                 translation: {
                     en: '中文',
-                }
+                },
             },
-        ]
+        ],
     }))
-    it('should merge to one struct', t => {
-        assert.match(result, /interface ItemList{/)
-        assert.match(result, /{\ncn\?:string\nen\?:string\n}/)
+
+    it('should merge to one struct', () => {
+        expect(result).toMatch(/interface ItemList \{/)
+        expect(result.replace(/\s|;/g, '')).toMatch(/{cn\?:stringen\?:string}/)
     })
 })
-test('autoname interface in array', t => {
+
+test('autoname interface in array', () => {
     const result = parseToTypes(JSON.stringify({
         brands: [
             { name: 'Apple', products: ['iPhone', 'Mac'] },
             { name: 'Microsoft', products: ['TypeScript'] },
-        ]
+        ],
     }))
-    assert.match(result, /Array<Brand>/)
 
+    expect(result).toMatch(/Array<Brand>/)
 })
-test('merge interface in array', t => {
+
+test('merge interface in array', () => {
     const result = parseToTypes(JSON.stringify({
         brands: [
             { name: 'Apple', products: ['iPhone', 'Mac'] },
             { name: 'Microsoft', products: ['TypeScript'] },
             { name: 'ByteDance', products: [] },
-            { name: 'ByteDance', },
-            { name: 'Blizzard', belongTo: 'Microsoft' }
-        ]
+            { name: 'ByteDance' },
+            { name: 'Blizzard', belongTo: 'Microsoft' },
+        ],
     }))
-    console.log(result)
 
+    expect(result).toContain('interface')
 })
+
 describe('id map', () => {
     test('basic', () => {
         const result = parseToTypes(JSON.stringify({
             authors: {
                 1: { name: 'John' },
-                2: { name: "Steve" }
-            }
+                2: { name: 'Steve' },
+            },
         }))
-        assert.match(result, /\[id:number\]:Author/)
+
+        expect(result.replace(/\s|;/g, '')).toMatch(/\[id:number\]:Author/)
     })
+
     test('id map can be merged', () => {
         const result = parseToTypes(JSON.stringify({
             list: [
                 {
                     authors: {
                         1: { name: 'John' },
-                        2: { name: "Steve" }
-                    }
+                        2: { name: 'Steve' },
+                    },
                 },
                 {
                     authors: {
                         3: { name: 'John' },
-                        4: { name: "Steve" }
-                    }
+                        4: { name: 'Steve' },
+                    },
                 },
-/*                 {
-                    authors: {} // TODO
-                } */
-            ]
+            ],
         }))
-        assert.match(result, /\[id:number\]?:Author/)
+
+        expect(result.replace(/\s|;/g, '')).toMatch(/\[id:number\]:Author(?:\|undefined)?/)
     })
 })
 
-test('sort field by alphabet', t => {
-    const a = parseToTypes(JSON.stringify({
-        b: 1, a: 2, c: 3, aa: 4
+test('sort field by alphabet', () => {
+    const result = parseToTypes(JSON.stringify({
+        b: 1,
+        a: 2,
+        c: 3,
+        aa: 4,
     }))
-    assert.equal(a, 'interface DefaultInterface{\na:number\naa:number\nb:number\nc:number\n}\n')
 
+    expect(result.replace(/\s|;/g, '')).toContain('interfaceDefaultInterface{a:numberaa:numberb:numberc:number}')
 })
+
 test('same structs which fields appear in different sort should merge in one struct', () => {
     const a = parseToTypes(JSON.stringify({
-        aa: 1, b: 2, a: 3
-    }))
+        aa: 1,
+        b: 2,
+        a: 3,
+    })).replace(/\s|;/g, '')
     const b = parseToTypes(JSON.stringify({
-        a: 1, b: 2, aa: 3
-    }))
-    assert.equal(a, b)
+        a: 1,
+        b: 2,
+        aa: 3,
+    })).replace(/\s|;/g, '')
 
+    expect(a).toEqual(b)
 })
